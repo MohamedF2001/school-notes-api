@@ -1,0 +1,1006 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API Gestion des Notes - École Coranique",
+    "description": "API REST pour la gestion des notes, classes, matières, professeurs, élèves et parents d'une école coranique.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "École Coranique"
+    }
+  },
+  "servers": [
+    { "url": "/", "description": "Serveur courant" }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Authentification directeur et professeur" },
+    { "name": "Classes", "description": "Gestion des classes" },
+    { "name": "Matières", "description": "Gestion des matières" },
+    { "name": "Professeurs", "description": "Gestion des professeurs" },
+    { "name": "Affectations", "description": "Affectations professeur / classe / matière" },
+    { "name": "Élèves", "description": "Gestion des élèves" },
+    { "name": "Parents", "description": "Gestion des parents et liens de consultation" },
+    { "name": "Accès public parent", "description": "Consultation publique via token" },
+    { "name": "Notes", "description": "Gestion des notes (interrogations et devoirs)" },
+    { "name": "Résultats", "description": "Résultats agrégés et tableau de bord" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Une erreur est survenue" },
+          "error": { "type": "string", "example": "Description technique de l'erreur" }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Données invalides" },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": { "type": "string", "example": "note" },
+                "message": { "type": "string", "example": "La note doit être comprise entre 0 et 20" }
+              }
+            }
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 20 },
+          "total": { "type": "integer", "example": 100 },
+          "totalPages": { "type": "integer", "example": 5 }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Connexion réussie" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string", "example": "6512abcf9e1b2c0012345678" },
+                  "username": { "type": "string", "example": "admin" },
+                  "nom": { "type": "string", "example": "Directeur" },
+                  "role": { "type": "string", "example": "director" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "username": { "type": "string", "example": "prof_ahmed" },
+          "nom": { "type": "string", "example": "Ahmed Diallo" },
+          "telephone": { "type": "string", "example": "+22912345678" },
+          "role": { "type": "string", "enum": ["director", "teacher"] },
+          "matieres": { "type": "array", "items": { "type": "string" } },
+          "classes": { "type": "array", "items": { "type": "string" } },
+          "actif": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Class": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "nom": { "type": "string", "example": "3ème année" },
+          "niveau": { "type": "string", "example": "Intermédiaire" },
+          "description": { "type": "string" },
+          "anneeScolaire": { "type": "string", "example": "2026-2027" },
+          "actif": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Subject": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "nom": { "type": "string", "example": "Coran" },
+          "description": { "type": "string" },
+          "coefficient": { "type": "number", "example": 3 },
+          "actif": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TeacherAssignment": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "teacher": { "type": "string" },
+          "class": { "type": "string" },
+          "subject": { "type": "string" },
+          "anneeScolaire": { "type": "string", "example": "2026-2027" },
+          "actif": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Student": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "nom": { "type": "string", "example": "Diallo" },
+          "prenom": { "type": "string", "example": "Ahmed" },
+          "dateNaissance": { "type": "string", "format": "date" },
+          "sexe": { "type": "string", "enum": ["M", "F"] },
+          "classe": { "type": "string" },
+          "matricule": { "type": "string", "example": "EC-2026-001" },
+          "parents": { "type": "array", "items": { "type": "string" } },
+          "anneeScolaire": { "type": "string", "example": "2026-2027" },
+          "actif": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Parent": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "nom": { "type": "string", "example": "Diallo" },
+          "prenom": { "type": "string", "example": "Moussa" },
+          "telephone": { "type": "string", "example": "+22912345678" },
+          "email": { "type": "string", "example": "moussa.diallo@example.com" },
+          "adresse": { "type": "string" },
+          "enfants": { "type": "array", "items": { "type": "string" } },
+          "actif": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ParentAccessToken": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "parent": { "type": "string" },
+          "token": { "type": "string", "example": "a1b2c3d4e5f6..." },
+          "expiresAt": { "type": "string", "format": "date-time", "nullable": true },
+          "revoked": { "type": "boolean", "example": false },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Grade": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "student": { "type": "string" },
+          "subject": { "type": "string" },
+          "class": { "type": "string" },
+          "teacher": { "type": "string" },
+          "semester": { "type": "integer", "enum": [1, 2] },
+          "type": { "type": "string", "enum": ["interrogation", "devoir"] },
+          "numero": { "type": "integer", "example": 1 },
+          "note": { "type": "number", "example": 16 },
+          "bareme": { "type": "number", "example": 20 },
+          "anneeScolaire": { "type": "string", "example": "2026-2027" },
+          "commentaire": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Result": {
+        "type": "object",
+        "properties": {
+          "student": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "nom": { "type": "string", "example": "Diallo" },
+              "prenom": { "type": "string", "example": "Ahmed" },
+              "classe": { "type": "string", "example": "3ème année" }
+            }
+          },
+          "semesters": {
+            "type": "object",
+            "properties": {
+              "1": {
+                "type": "object",
+                "properties": {
+                  "subjects": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "subject": { "type": "string", "example": "Coran" },
+                        "coefficient": { "type": "number", "example": 2 },
+                        "grades": {
+                          "type": "object",
+                          "properties": {
+                            "interrogations": {
+                              "type": "array",
+                              "items": { "type": "number", "nullable": true }
+                            },
+                            "devoirs": {
+                              "type": "array",
+                              "items": { "type": "number", "nullable": true }
+                            }
+                          }
+                        },
+                        "average": { "type": "number", "nullable": true, "example": 16 },
+                        "missing": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  },
+                  "generalAverage": { "type": "number", "nullable": true, "example": 15.7 }
+                }
+              },
+              "2": {
+                "type": "object",
+                "properties": {
+                  "subjects": { "type": "array", "items": { "type": "object" } },
+                  "generalAverage": { "type": "number", "nullable": true, "example": null }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentification requise ou invalide",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "Forbidden": {
+        "description": "Accès refusé (permissions insuffisantes)",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "NotFound": {
+        "description": "Ressource introuvable",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "ValidationErrorResponse": {
+        "description": "Données invalides",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/ValidationError" } }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/auth/director/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Connexion du directeur",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "admin" },
+                  "password": { "type": "string", "example": "admin" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connexion réussie",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/auth/teacher/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Connexion d'un professeur",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "prof_ahmed" },
+                  "password": { "type": "string", "example": "123456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connexion réussie",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Consulter son profil (directeur ou professeur)",
+        "responses": {
+          "200": {
+            "description": "Profil récupéré",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Modifier son propre mot de passe",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currentPassword", "newPassword"],
+                "properties": {
+                  "currentPassword": { "type": "string" },
+                  "newPassword": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Mot de passe modifié avec succès" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/classes": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "Lister les classes",
+        "parameters": [
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "anneeScolaire", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Liste des classes" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Classes"],
+        "summary": "Créer une classe (directeur uniquement)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Class" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Classe créée" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/classes/{id}": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "Consulter une classe",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Classe récupérée" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Classes"],
+        "summary": "Modifier une classe (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Class" } } }
+        },
+        "responses": {
+          "200": { "description": "Classe modifiée" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Classes"],
+        "summary": "Désactiver une classe (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Classe désactivée" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/classes/{id}/students": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "Lister les élèves d'une classe",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Élèves de la classe" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/classes/{id}/teachers": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "Lister les professeurs affectés à une classe",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Professeurs affectés à la classe" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/classes/{id}/results": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "Résultats agrégés d'une classe",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Résultats de la classe" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/subjects": {
+      "get": {
+        "tags": ["Matières"],
+        "summary": "Lister les matières",
+        "parameters": [
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Liste des matières" } }
+      },
+      "post": {
+        "tags": ["Matières"],
+        "summary": "Créer une matière (directeur uniquement)",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Subject" } } }
+        },
+        "responses": {
+          "201": { "description": "Matière créée" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/subjects/{id}": {
+      "get": {
+        "tags": ["Matières"],
+        "summary": "Consulter une matière",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Matière récupérée" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Matières"],
+        "summary": "Modifier une matière (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Subject" } } }
+        },
+        "responses": { "200": { "description": "Matière modifiée" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "delete": {
+        "tags": ["Matières"],
+        "summary": "Désactiver une matière (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Matière désactivée" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/teachers": {
+      "get": {
+        "tags": ["Professeurs"],
+        "summary": "Lister les professeurs (directeur uniquement)",
+        "parameters": [
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Liste des professeurs" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "post": {
+        "tags": ["Professeurs"],
+        "summary": "Créer un professeur (directeur uniquement)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password", "nom"],
+                "properties": {
+                  "username": { "type": "string", "example": "prof_ahmed" },
+                  "password": { "type": "string", "example": "123456" },
+                  "nom": { "type": "string", "example": "Ahmed Diallo" },
+                  "telephone": { "type": "string", "example": "+22912345678" },
+                  "matieres": { "type": "array", "items": { "type": "string" } },
+                  "classes": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Professeur créé" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/teachers/{id}": {
+      "get": {
+        "tags": ["Professeurs"],
+        "summary": "Consulter un professeur (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Professeur récupéré" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Professeurs"],
+        "summary": "Modifier un professeur (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Professeur modifié" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "delete": {
+        "tags": ["Professeurs"],
+        "summary": "Désactiver un professeur (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Professeur désactivé" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/teachers/{id}/password": {
+      "put": {
+        "tags": ["Professeurs"],
+        "summary": "Réinitialiser le mot de passe d'un professeur (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["newPassword"],
+                "properties": { "newPassword": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Mot de passe réinitialisé" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/teachers/{id}/assignments": {
+      "get": {
+        "tags": ["Professeurs"],
+        "summary": "Lister les affectations d'un professeur (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Affectations du professeur" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/assignments": {
+      "get": {
+        "tags": ["Affectations"],
+        "summary": "Lister les affectations",
+        "parameters": [
+          { "name": "teacher", "in": "query", "schema": { "type": "string" } },
+          { "name": "class", "in": "query", "schema": { "type": "string" } },
+          { "name": "subject", "in": "query", "schema": { "type": "string" } },
+          { "name": "anneeScolaire", "in": "query", "schema": { "type": "string" } },
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": { "200": { "description": "Liste des affectations" } }
+      },
+      "post": {
+        "tags": ["Affectations"],
+        "summary": "Créer une affectation (directeur uniquement)",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TeacherAssignment" } } }
+        },
+        "responses": {
+          "201": { "description": "Affectation créée" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/assignments/{id}": {
+      "get": {
+        "tags": ["Affectations"],
+        "summary": "Consulter une affectation",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Affectation récupérée" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Affectations"],
+        "summary": "Modifier une affectation (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Affectation modifiée" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "delete": {
+        "tags": ["Affectations"],
+        "summary": "Supprimer une affectation (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Affectation supprimée" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/students": {
+      "get": {
+        "tags": ["Élèves"],
+        "summary": "Lister les élèves",
+        "parameters": [
+          { "name": "classId", "in": "query", "schema": { "type": "string" } },
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Liste des élèves" } }
+      },
+      "post": {
+        "tags": ["Élèves"],
+        "summary": "Créer un élève (directeur uniquement)",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Student" } } }
+        },
+        "responses": {
+          "201": { "description": "Élève créé" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/students/{id}": {
+      "get": {
+        "tags": ["Élèves"],
+        "summary": "Consulter un élève",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Élève récupéré" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Élèves"],
+        "summary": "Modifier un élève (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Élève modifié" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "delete": {
+        "tags": ["Élèves"],
+        "summary": "Désactiver ou supprimer un élève (directeur uniquement)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "hard", "in": "query", "schema": { "type": "boolean" }, "description": "true pour une suppression définitive" }
+        ],
+        "responses": { "200": { "description": "Élève supprimé" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/students/{id}/results": {
+      "get": {
+        "tags": ["Élèves"],
+        "summary": "Consulter les résultats d'un élève",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Résultats de l'élève",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/students/{id}/grades": {
+      "get": {
+        "tags": ["Élèves"],
+        "summary": "Consulter les notes d'un élève",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "semester", "in": "query", "schema": { "type": "integer" } },
+          { "name": "subjectId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Notes de l'élève" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/parents": {
+      "get": {
+        "tags": ["Parents"],
+        "summary": "Lister les parents (directeur uniquement)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Liste des parents" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "post": {
+        "tags": ["Parents"],
+        "summary": "Créer un parent (directeur uniquement)",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Parent" } } }
+        },
+        "responses": {
+          "201": { "description": "Parent créé" },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/parents/{id}": {
+      "get": {
+        "tags": ["Parents"],
+        "summary": "Consulter un parent (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Parent récupéré" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Parents"],
+        "summary": "Modifier un parent (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Parent modifié" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "delete": {
+        "tags": ["Parents"],
+        "summary": "Désactiver un parent (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Parent désactivé" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/parents/{id}/access-link": {
+      "post": {
+        "tags": ["Parents"],
+        "summary": "Générer un lien de consultation pour un parent (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expiresInDays": { "type": "integer", "example": 90, "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lien généré",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParentAccessToken" } } }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/parents/{id}/access-links": {
+      "get": {
+        "tags": ["Parents"],
+        "summary": "Lister les liens de consultation d'un parent (directeur uniquement)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Liens de consultation" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/parents/{id}/access-link/{tokenId}": {
+      "delete": {
+        "tags": ["Parents"],
+        "summary": "Révoquer un lien de consultation (directeur uniquement)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "tokenId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Lien révoqué" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/parent/public/{token}": {
+      "get": {
+        "tags": ["Accès public parent"],
+        "summary": "Consulter les résultats des enfants via un token public",
+        "security": [],
+        "parameters": [{ "name": "token", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Résultats des enfants du parent" },
+          "403": { "description": "Lien révoqué ou expiré" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/grades": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Lister les notes",
+        "parameters": [
+          { "name": "studentId", "in": "query", "schema": { "type": "string" } },
+          { "name": "classId", "in": "query", "schema": { "type": "string" } },
+          { "name": "subjectId", "in": "query", "schema": { "type": "string" } },
+          { "name": "semester", "in": "query", "schema": { "type": "integer" } },
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["interrogation", "devoir"] } },
+          { "name": "anneeScolaire", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Liste des notes" } }
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Saisir une note (professeur selon affectation, ou directeur)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["student", "subject", "class", "semester", "type", "numero", "note"],
+                "properties": {
+                  "student": { "type": "string" },
+                  "subject": { "type": "string" },
+                  "class": { "type": "string" },
+                  "semester": { "type": "integer", "example": 1 },
+                  "type": { "type": "string", "enum": ["interrogation", "devoir"] },
+                  "numero": { "type": "integer", "example": 1 },
+                  "note": { "type": "number", "example": 16 },
+                  "bareme": { "type": "number", "example": 20 },
+                  "anneeScolaire": { "type": "string", "example": "2026-2027" },
+                  "commentaire": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note enregistrée",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Grade" } } }
+          },
+          "400": { "$ref": "#/components/responses/ValidationErrorResponse" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/grades/{id}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Consulter une note",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Note récupérée" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Notes"],
+        "summary": "Modifier une note (professeur affecté ou directeur)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Note modifiée" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Notes"],
+        "summary": "Supprimer une note (professeur affecté ou directeur)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Note supprimée" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/grades/student/{studentId}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Lister les notes d'un élève",
+        "parameters": [{ "name": "studentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Notes de l'élève" } }
+      }
+    },
+    "/api/grades/class/{classId}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Lister les notes d'une classe",
+        "parameters": [{ "name": "classId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Notes de la classe" } }
+      }
+    },
+    "/api/grades/subject/{subjectId}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Lister les notes d'une matière",
+        "parameters": [{ "name": "subjectId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Notes de la matière" } }
+      }
+    },
+    "/api/grades/semester/{semester}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Lister les notes d'un semestre",
+        "parameters": [{ "name": "semester", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Notes du semestre" } }
+      }
+    },
+    "/api/results/subject/{id}": {
+      "get": {
+        "tags": ["Résultats"],
+        "summary": "Résultats agrégés pour une matière",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "classId", "in": "query", "schema": { "type": "string" } },
+          { "name": "semester", "in": "query", "schema": { "type": "integer" } },
+          { "name": "anneeScolaire", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Résultats de la matière" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/results/teacher/{id}": {
+      "get": {
+        "tags": ["Résultats"],
+        "summary": "Résultats agrégés selon les affectations d'un professeur",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Résultats du professeur" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/results/semester/{semester}": {
+      "get": {
+        "tags": ["Résultats"],
+        "summary": "Résultats agrégés pour un semestre",
+        "parameters": [
+          { "name": "semester", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "classId", "in": "query", "schema": { "type": "string" } },
+          { "name": "anneeScolaire", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Résultats du semestre" }, "400": { "$ref": "#/components/responses/ValidationErrorResponse" } }
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "tags": ["Résultats"],
+        "summary": "Tableau de bord du directeur (directeur uniquement)",
+        "responses": {
+          "200": { "description": "Statistiques du tableau de bord" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    }
+  }
+}
