@@ -12,9 +12,7 @@ const directorLogin = async (req, res, next) => {
         errors: [
           { field: "username", message: "L'identifiant est obligatoire" },
           { field: "password", message: "Le mot de passe est obligatoire" },
-        ].filter((e) =>
-          e.field === "username" ? !username : !password
-        ),
+        ].filter((e) => (e.field === "username" ? !username : !password)),
       });
     }
 
@@ -59,7 +57,7 @@ const directorLogin = async (req, res, next) => {
       data: {
         token,
         user: {
-          id: user._id,
+          _id: user._id,
           username: user.username,
           nom: user.nom,
           role: user.role,
@@ -82,9 +80,7 @@ const teacherLogin = async (req, res, next) => {
         errors: [
           { field: "username", message: "L'identifiant est obligatoire" },
           { field: "password", message: "Le mot de passe est obligatoire" },
-        ].filter((e) =>
-          e.field === "username" ? !username : !password
-        ),
+        ].filter((e) => (e.field === "username" ? !username : !password)),
       });
     }
 
@@ -129,7 +125,7 @@ const teacherLogin = async (req, res, next) => {
       data: {
         token,
         user: {
-          id: user._id,
+          _id: user._id,
           username: user.username,
           nom: user.nom,
           role: user.role,
@@ -166,8 +162,14 @@ const changePassword = async (req, res, next) => {
         success: false,
         message: "Données invalides",
         errors: [
-          { field: "currentPassword", message: "Le mot de passe actuel est obligatoire" },
-          { field: "newPassword", message: "Le nouveau mot de passe est obligatoire" },
+          {
+            field: "currentPassword",
+            message: "Le mot de passe actuel est obligatoire",
+          },
+          {
+            field: "newPassword",
+            message: "Le nouveau mot de passe est obligatoire",
+          },
         ],
       });
     }
@@ -177,7 +179,11 @@ const changePassword = async (req, res, next) => {
         success: false,
         message: "Données invalides",
         errors: [
-          { field: "newPassword", message: "Le nouveau mot de passe doit contenir au moins 4 caractères" },
+          {
+            field: "newPassword",
+            message:
+              "Le nouveau mot de passe doit contenir au moins 4 caractères",
+          },
         ],
       });
     }
