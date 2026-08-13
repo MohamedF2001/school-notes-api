@@ -39,19 +39,17 @@ app.use(express.urlencoded({ extended: true }));
 
 const swaggerPath = path.join(__dirname, "swagger.json");
 const swaggerDocument = JSON.parse(fs.readFileSync(swaggerPath, "utf-8"));
-//app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-/* app.get("/", (req, res) => {
+app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
     message: "API de gestion des notes - École coranique",
     data: {
-      documentation: "/api-docs",
+      documentation: "https://school-notes-api.vercel.app/api-docs",
     },
   });
-}); */
-
-app.use("/", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+}); 
 
 
 app.use("/api/auth", authRoutes);
