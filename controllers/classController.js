@@ -3,7 +3,10 @@ import Student from "../models/Student.js";
 import TeacherAssignment from "../models/TeacherAssignment.js";
 import Subject from "../models/Subject.js";
 import Grade from "../models/Grade.js";
-import { buildStudentResults, computeClassAverage } from "../utils/calculateResults.js";
+import {
+  buildStudentResults,
+  computeClassAverage,
+} from "../utils/calculateResults.js";
 
 const createClass = async (req, res, next) => {
   try {
@@ -15,12 +18,20 @@ const createClass = async (req, res, next) => {
         message: "Données invalides",
         errors: [
           { field: "nom", message: "Le nom de la classe est obligatoire" },
-          { field: "anneeScolaire", message: "L'année scolaire est obligatoire" },
+          {
+            field: "anneeScolaire",
+            message: "L'année scolaire est obligatoire",
+          },
         ].filter((e) => !req.body[e.field]),
       });
     }
 
-    const newClass = await Class.create({ nom, niveau, description, anneeScolaire });
+    const newClass = await Class.create({
+      nom,
+      niveau,
+      description,
+      anneeScolaire,
+    });
 
     console.log("📚 Classe créée :", newClass.nom);
 
@@ -41,6 +52,8 @@ const getClasses = async (req, res, next) => {
 
     if (active !== undefined) filter.actif = active === "true";
     if (anneeScolaire) filter.anneeScolaire = anneeScolaire;
+
+    console.log("📚 getClasses filter:", filter);
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const limitNum = Math.max(parseInt(limit, 10) || 20, 1);
@@ -164,7 +177,7 @@ const getClassStudents = async (req, res, next) => {
 
     const students = await Student.find({ classe: classe._id }).populate(
       "parents",
-      "nom prenom telephone email"
+      "nom prenom telephone email",
     );
 
     return res.status(200).json({
@@ -189,7 +202,10 @@ const getClassTeachers = async (req, res, next) => {
       });
     }
 
-    const assignments = await TeacherAssignment.find({ class: classe._id, actif: true })
+    const assignments = await TeacherAssignment.find({
+      class: classe._id,
+      actif: true,
+    })
       .populate("teacher", "nom username telephone")
       .populate("subject", "nom coefficient");
 
@@ -236,7 +252,7 @@ const getClassResults = async (req, res, next) => {
           },
           semesters,
         };
-      })
+      }),
     );
 
     const classAverages = {
